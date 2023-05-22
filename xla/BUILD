@@ -1155,6 +1155,51 @@ filegroup(
     ],
 )
 
+cc_library(
+    name = "xla_cc",
+    srcs = ["xla_cc.cc"],
+    hdrs = ["xla_cc.h"],
+    deps = [
+        "@llvm-project//llvm:Support",
+        "@llvm-project//mlir:AllPassesAndDialects",
+        "@llvm-project//mlir:BytecodeWriter",
+        "@llvm-project//mlir:IR",
+        "@llvm-project//mlir:Parser",
+        "@llvm-project//mlir:Pass",
+        "@stablehlo//:register",
+        "@tsl//tsl/platform:errors",
+        "//xla:statusor",
+        "//xla/hlo/experimental/auto_sharding:auto_sharding",
+        "//xla/hlo/ir:hlo",
+        "//xla/mlir_hlo:hlo_dialect_registration",
+        "//xla/mlir_hlo:mhlo_passes",
+        "//xla/pjrt:mlir_to_hlo",
+        "//xla/service:hlo_pass_pipeline",
+        "//xla/service:sharding_propagation",
+        "//xla/service/spmd:stateful_rng_spmd_partitioner",
+        "//xla/translate/hlo_to_mhlo:hlo_to_mlir_hlo",
+    ],
+    linkopts = [
+        # There is a conflict with
+        # @com_google_ortools//ortools/linear_solver:linear_solver
+        # and
+        # @com_google_ortools//ortools/linear_solver:scip_with_glop
+        # where both define the same symbols.
+        "-Wl,--allow-multiple-definition"
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# To build properly as a single library a monolithic build is required
+# bazel build --config=monolithic //xla:xla_cc_shared
+cc_shared_library(
+    name = "xla_cc_shared",
+    deps = [
+        ":xla_cc"
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # -----------------------------------------------------------------------------
 
 # copybara:uncomment_begin(google-only)
