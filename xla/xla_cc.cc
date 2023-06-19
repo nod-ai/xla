@@ -24,9 +24,20 @@
 #include "xla/hlo/ir/hlo_module.h"
 #include "xla/mlir_hlo/mhlo/transforms/passes.h"
 #include "xla/pjrt/mlir_to_hlo.h"
+#include "xla/service/algebraic_simplifier.h"
+#include "xla/service/all_gather_broadcast_reorder.h"
+#include "xla/service/all_reduce_folder.h"
+#include "xla/service/all_reduce_reassociate.h"
+#include "xla/service/data_parallel_collective_optimizer.h"
+#include "xla/service/gpu/gpu_conv_rewriter.h"
+#include "xla/service/gpu/gpu_reduce_scatter_creator.h"
+#include "xla/service/hlo_dce.h"
 #include "xla/service/hlo_pass_pipeline.h"
+#include "xla/service/reduce_scatter_reassociate.h"
 #include "xla/service/sharding_propagation.h"
+#include "xla/service/spmd/collective_permute_motion.h"
 #include "xla/service/spmd/stateful_rng_spmd_partitioner.h"
+#include "xla/service/while_loop_all_reduce_code_motion.h"
 #include "xla/translate/hlo_to_mhlo/hlo_to_mlir_hlo.h"
 #include "xla_cc.h"
 
@@ -299,6 +310,54 @@ void xlaMakeDefaultSpmdPartitionerOption(XlaSpmdPartitionerOption* option) {
   option->num_replicas = -1;
 }
 
+void xlaMakeDefaultCollectivesOptimizationPipeline(
+    XlaCollectivesOptimizationOption* option) {
+  option->reassociate_converted_all_reduce = true;
+  option->enable_while_loop_reduce_scatter_code_motion = false;
+  option->enable_data_parallel_collective_optimizer = false;
+}
+
+XlaStatus xlaRunCollectivesOptimizationPipeline(
+    xla::HloModule* module, const XlaCollectivesOptimizationOption* option) {
+  AlgebraicSimplifierOptions layout_insensitive_algsimp_opts(
+      {}, gpu::GpuConvRewriter::ConvIsLowerable);
+  HloPassPipeline pipeline("collectives-optimization");
+
+  pipeline.AddPass<AllReduceFolder>();
+  pipeline.AddPass<gpu::ReduceScatterCreator>();
+  pipeline.AddPass<AllReduceReassociate>(
+      option->reassociate_converted_all_reduce);
+  pipeline.AddPass<ReduceScatterReassociate>();
+  pipeline.AddPass<WhileLoopAllReduceCodeMotion>(
+      /*enable_reduce_scatter=*/option
+          ->enable_while_loop_reduce_scatter_code_motion);
+  if (option->enable_data_parallel_collective_optimizer) {
+    DataParallelCollectiveOptimizer::DataParallelCollectiveConfig config{
+        /*level_to_operate_on=*/0,
+        /*max_pipelining_per_loop=*/INT64_MAX,
+        /*last_run=*/true,
+        /*process_different_sized_ops=*/true,
+        /*pipelining_direction=*/
+        DataParallelCollectiveOptimizer::PipeliningDirection::kForward,
+        /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+    pipeline.AddPass<DataParallelCollectiveOptimizer>(config);
+  }
+
+  // Run algebraic simplifier to reshape(broadcast) into a broadcast when
+  // the reshape is just adding a unit dimension. This will help with the
+  // AllGatherBroadcastReorder pass.
+  pipeline.AddPass<AlgebraicSimplifier>(layout_insensitive_algsimp_opts);
+
+  pipeline.AddPass<AllGatherBroadcastReorder>();
+
+  if (pipeline.Run(module).status() != OkStatus()) {
+    std::cerr << "Failed to run XLA collectives optimization pipeline."
+              << std::endl;
+    return XlaStatus::ERROR;
+  }
+  return XlaStatus::OK;
+}
+
 XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
                                     const XlaSpmdPartitionerOption* option) {
   HloPassPipeline pipeline("spmd-partitioner");
@@ -310,6 +369,8 @@ XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
                             : option->num_replicas;
   pipeline.AddPass<spmd::StatefulRngSpmdPartitioner>(numPartitions,
                                                      numReplicas);
+  pipeline.AddPass<CollectivePermuteMotion>();
+
   if (pipeline.Run(module).status() != OkStatus()) {
     std::cerr << "Failed to run XLA Stateful RNG SPMD partitioner pass."
               << std::endl;

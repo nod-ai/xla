@@ -150,6 +150,12 @@ typedef struct XlaSpmdPartitionerOption {
   int64_t num_replicas;
 } XlaSpmdPartitionerOption;
 
+typedef struct XlaCollectivesOptimizationOption {
+  bool reassociate_converted_all_reduce;
+  bool enable_while_loop_reduce_scatter_code_motion;
+  bool enable_data_parallel_collective_optimizer;
+} CollectivesOptimization;
+
 XlaStatus xlaStableHloFileToXlaHlo(const char* filepath,
                                    xla::HloModule** outModule);
 XlaStatus xlaStableHloBufferToXlaHlo(const char* mlirBytecodeBuffer,
@@ -170,9 +176,14 @@ void xlaMakeDefaultSpmdPartitionerOption(XlaSpmdPartitionerOption* option);
 XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
                                     const XlaSpmdPartitionerOption* option);
 
+void xlaMakeDefaultCollectivesOptimizationPipeline(
+    XlaCollectivesOptimizationOption* option);
+XlaStatus xlaRunCollectivesOptimizationPipeline(
+    xla::HloModule* module, const XlaCollectivesOptimizationOption* option);
+
 void xlaMakeDefaultAutoShardingOption(XlaAutoShardingOption* option);
 XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
                                  const XlaAutoShardingOption* option);
-}
+}  // extern "C"
 
 #endif  // XLA_XLA_CC_H
