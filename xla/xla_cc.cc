@@ -28,6 +28,8 @@
 #include "xla/service/all_gather_broadcast_reorder.h"
 #include "xla/service/all_reduce_folder.h"
 #include "xla/service/all_reduce_reassociate.h"
+#include "xla/service/call_inliner.h"
+#include "xla/service/conditional_canonicalizer.h"
 #include "xla/service/data_parallel_collective_optimizer.h"
 #include "xla/service/gpu/gpu_conv_rewriter.h"
 #include "xla/service/gpu/gpu_reduce_scatter_creator.h"
@@ -38,6 +40,7 @@
 #include "xla/service/spmd/collective_permute_motion.h"
 #include "xla/service/spmd/stateful_rng_spmd_partitioner.h"
 #include "xla/service/while_loop_all_reduce_code_motion.h"
+#include "xla/service/zero_sized_hlo_elimination.h"
 #include "xla/translate/hlo_to_mhlo/hlo_to_mlir_hlo.h"
 #include "xla_cc.h"
 
@@ -292,6 +295,9 @@ XlaStatus xlaRunShardingPropagationPass(
   absl::Span<const bool> allow_spmd_sharding_propagation_to_parameters(
       option->allow_spmd_sharding_propagation_to_parameters,
       option->allow_spmd_sharding_propagation_to_parameters_size);
+  pipeline.AddPass<CallInliner>();
+  pipeline.AddPass<ZeroSizedHloElimination>();
+  pipeline.AddPass<ConditionalCanonicalizer>();
   pipeline.AddPass<ShardingPropagation>(
       option->is_spmd, option->propagate_metadata,
       allow_spmd_sharding_propagation_to_output,
@@ -367,6 +373,49 @@ XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
   int64_t numReplicas = option->num_replicas == -1
                             ? module->config().replica_count()
                             : option->num_replicas;
+  pipeline.AddPass<spmd::StatefulRngSpmdPartitioner>(numPartitions,
+                                                     numReplicas);
+  pipeline.AddPass<CollectivePermuteMotion>();
+
+  if (pipeline.Run(module).status() != OkStatus()) {
+    std::cerr << "Failed to run XLA Stateful RNG SPMD partitioner pass."
+              << std::endl;
+    return XlaStatus::ERROR;
+  }
+  return XlaStatus::OK;
+}
+
+XlaStatus xlaRunShardingPropagationAndSpmdPartitionerPasses(
+    xla::HloModule* module,
+    const XlaShardingPropagationOption* sharding_propagation_option,
+    const XlaSpmdPartitionerOption* spmd_partitioner_option) {
+  HloPassPipeline pipeline("sharding-propagation-spmd-partitioner");
+
+  absl::Span<const bool> allow_spmd_sharding_propagation_to_output(
+      sharding_propagation_option->allow_spmd_sharding_propagation_to_output,
+      sharding_propagation_option
+          ->allow_spmd_sharding_propagation_to_output_size);
+  absl::Span<const bool> allow_spmd_sharding_propagation_to_parameters(
+      sharding_propagation_option
+          ->allow_spmd_sharding_propagation_to_parameters,
+      sharding_propagation_option
+          ->allow_spmd_sharding_propagation_to_parameters_size);
+  pipeline.AddPass<CallInliner>();
+  pipeline.AddPass<ZeroSizedHloElimination>();
+  pipeline.AddPass<ConditionalCanonicalizer>();
+  pipeline.AddPass<ShardingPropagation>(
+      sharding_propagation_option->is_spmd,
+      sharding_propagation_option->propagate_metadata,
+      allow_spmd_sharding_propagation_to_output,
+      allow_spmd_sharding_propagation_to_parameters,
+      sharding_propagation_option->cse_prevention_only);
+
+  int64_t numPartitions = spmd_partitioner_option->num_partitions == -1
+                              ? module->config().num_partitions()
+                              : spmd_partitioner_option->num_partitions;
+  int64_t numReplicas = spmd_partitioner_option->num_replicas == -1
+                            ? module->config().replica_count()
+                            : spmd_partitioner_option->num_replicas;
   pipeline.AddPass<spmd::StatefulRngSpmdPartitioner>(numPartitions,
                                                      numReplicas);
   pipeline.AddPass<CollectivePermuteMotion>();
