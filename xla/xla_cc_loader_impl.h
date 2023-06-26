@@ -21,6 +21,8 @@ MakeDefaultShardingPropagationOption makeDefaultShardingPropagationOption =
 RunShardingPropagationPass runShardingPropagationPass = nullptr;
 MakeDefaultSpmdPartitionerOption makeDefaultSpmdPartitionerOption = nullptr;
 RunSpmdPartitionerPass runSpmdPartitionerPass = nullptr;
+RunShardingPropagationAndSpmdPartitionerPasses
+    runShardingPropagationAndSpmdPartitionerPasses = nullptr;
 MakeDefaultCollectivesOptimizationPipeline
     makeDefaultCollectivesOptimizationPipeline = nullptr;
 RunCollectivesOptimizationPipeline runCollectivesOptimizationPipeline = nullptr;
@@ -55,6 +57,9 @@ XlaStatus loadSymbols(void* libraryHandle) {
        reinterpret_cast<void**>(&makeDefaultSpmdPartitionerOption)},
       {"xlaRunSpmdPartitionerPass",
        reinterpret_cast<void**>(&runSpmdPartitionerPass)},
+      {"xlaRunShardingPropagationAndSpmdPartitionerPasses",
+       reinterpret_cast<void**>(
+           &runShardingPropagationAndSpmdPartitionerPasses)},
       {"xlaMakeDefaultCollectivesOptimizationPipeline",
        reinterpret_cast<void**>(&makeDefaultCollectivesOptimizationPipeline)},
       {"xlaRunCollectivesOptimizationPipeline",

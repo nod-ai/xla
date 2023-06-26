@@ -29,6 +29,10 @@ using MakeDefaultSpmdPartitionerOption =
     void (*)(XlaSpmdPartitionerOption* option);
 using RunSpmdPartitionerPass = XlaStatus (*)(
     xla::HloModule* module, const XlaSpmdPartitionerOption* option);
+using RunShardingPropagationAndSpmdPartitionerPasses = XlaStatus (*)(
+    xla::HloModule* module,
+    const XlaShardingPropagationOption* sharding_propagation_option,
+    const XlaSpmdPartitionerOption* spmd_partitioner_option);
 using MakeDefaultCollectivesOptimizationPipeline =
     void (*)(XlaCollectivesOptimizationOption* option);
 using RunCollectivesOptimizationPipeline = XlaStatus (*)(
@@ -47,6 +51,8 @@ extern MakeDefaultShardingPropagationOption
 extern RunShardingPropagationPass runShardingPropagationPass;
 extern MakeDefaultSpmdPartitionerOption makeDefaultSpmdPartitionerOption;
 extern RunSpmdPartitionerPass runSpmdPartitionerPass;
+extern RunShardingPropagationAndSpmdPartitionerPasses
+    runShardingPropagationAndSpmdPartitionerPasses;
 extern MakeDefaultCollectivesOptimizationPipeline
     makeDefaultCollectivesOptimizationPipeline;
 extern RunCollectivesOptimizationPipeline runCollectivesOptimizationPipeline;

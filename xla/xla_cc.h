@@ -176,6 +176,11 @@ void xlaMakeDefaultSpmdPartitionerOption(XlaSpmdPartitionerOption* option);
 XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
                                     const XlaSpmdPartitionerOption* option);
 
+XlaStatus xlaRunShardingPropagationAndSpmdPartitionerPasses(
+    xla::HloModule* module,
+    const XlaShardingPropagationOption* sharding_propagation_option,
+    const XlaSpmdPartitionerOption* spmd_partitioner_option);
+
 void xlaMakeDefaultCollectivesOptimizationPipeline(
     XlaCollectivesOptimizationOption* option);
 XlaStatus xlaRunCollectivesOptimizationPipeline(
