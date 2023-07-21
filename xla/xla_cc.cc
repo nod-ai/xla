@@ -382,6 +382,10 @@ XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
               << std::endl;
     return XlaStatus::ERROR;
   }
+
+  module->config().set_num_partitions(numPartitions);
+  module->config().set_replica_count(numReplicas);
+
   return XlaStatus::OK;
 }
 
@@ -425,6 +429,10 @@ XlaStatus xlaRunShardingPropagationAndSpmdPartitionerPasses(
               << std::endl;
     return XlaStatus::ERROR;
   }
+
+  module->config().set_num_partitions(numPartitions);
+  module->config().set_replica_count(numReplicas);
+
   return XlaStatus::OK;
 }
 
