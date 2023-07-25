@@ -29,8 +29,8 @@
 #include "xla/service/all_reduce_folder.h"
 #include "xla/service/all_reduce_reassociate.h"
 #include "xla/service/call_inliner.h"
+#include "xla/service/collective_pipeliner.h"
 #include "xla/service/conditional_canonicalizer.h"
-#include "xla/service/data_parallel_collective_optimizer.h"
 #include "xla/service/gpu/gpu_conv_rewriter.h"
 #include "xla/service/gpu/gpu_reduce_scatter_creator.h"
 #include "xla/service/hlo_dce.h"
@@ -338,15 +338,42 @@ XlaStatus xlaRunCollectivesOptimizationPipeline(
       /*enable_reduce_scatter=*/option
           ->enable_while_loop_reduce_scatter_code_motion);
   if (option->enable_data_parallel_collective_optimizer) {
-    DataParallelCollectiveOptimizer::DataParallelCollectiveConfig config{
-        /*level_to_operate_on=*/0,
-        /*max_pipelining_per_loop=*/INT64_MAX,
-        /*last_run=*/true,
-        /*process_different_sized_ops=*/true,
-        /*pipelining_direction=*/
-        DataParallelCollectiveOptimizer::PipeliningDirection::kForward,
-        /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
-    pipeline.AddPass<DataParallelCollectiveOptimizer>(config);
+    {
+      CollectivePipeliner::Config config{
+          /*op=*/HloOpcode::kAllReduce,
+          /*level_to_operate_on=*/0,
+          /*max_pipelining_per_loop=*/INT64_MAX,
+          /*last_run=*/true,
+          /*process_different_sized_ops=*/true,
+          /*pipelining_direction=*/
+          CollectivePipeliner::PipeliningDirection::kForward,
+          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+      pipeline.AddPass<CollectivePipeliner>(config);
+    }
+    {
+      CollectivePipeliner::Config config{
+          /*op=*/HloOpcode::kAllGather,
+          /*level_to_operate_on=*/0,
+          /*max_pipelining_per_loop=*/INT64_MAX,
+          /*last_run=*/true,
+          /*process_different_sized_ops=*/true,
+          /*pipelining_direction=*/
+          CollectivePipeliner::PipeliningDirection::kBackward,
+          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+      pipeline.AddPass<CollectivePipeliner>(config);
+    }
+    {
+      CollectivePipeliner::Config config{
+          /*op=*/HloOpcode::kReduceScatter,
+          /*level_to_operate_on=*/0,
+          /*max_pipelining_per_loop=*/INT64_MAX,
+          /*last_run=*/true,
+          /*process_different_sized_ops=*/true,
+          /*pipelining_direction=*/
+          CollectivePipeliner::PipeliningDirection::kForward,
+          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+      pipeline.AddPass<CollectivePipeliner>(config);
+    }
   }
 
   // Run algebraic simplifier to reshape(broadcast) into a broadcast when
