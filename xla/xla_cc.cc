@@ -115,6 +115,17 @@ XlaStatus stableHloToXlaHloPjrt(mlir::ModuleOp moduleOp,
   if (!hloModule.ok()) {
     return XlaStatus::ERROR;
   }
+
+  if (auto num_partitions =
+          moduleOp->getAttrOfType<mlir::IntegerAttr>("mhlo.num_partitions")) {
+    hloModule.value()->config().set_num_partitions(num_partitions.getInt());
+  }
+
+  if (auto num_replicas =
+          moduleOp->getAttrOfType<mlir::IntegerAttr>("mhlo.num_replicas")) {
+    hloModule.value()->config().set_replica_count(num_replicas.getInt());
+  }
+
   *outModule = hloModule.value().release();
 
   return XlaStatus::OK;
