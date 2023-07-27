@@ -110,12 +110,11 @@ Status HloModuleImporter::Import(const xla::HloModule& hlo_module) {
                     builder_.getArrayAttr(parameter_shardings));
   }
 
-  if (hlo_module.config().num_partitions() > 0) {
+  if (hlo_module.config().num_partitions() > 1 ||
+      hlo_module.config().replica_count() > 1) {
     module->setAttr(
         "mhlo.num_partitions",
         builder_.getI32IntegerAttr(hlo_module.config().num_partitions()));
-  }
-  if (hlo_module.config().replica_count() > 0) {
     module->setAttr(
         "mhlo.num_replicas",
         builder_.getI32IntegerAttr(hlo_module.config().replica_count()));
