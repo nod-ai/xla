@@ -34,6 +34,7 @@
 #include "xla/service/gpu/gpu_conv_rewriter.h"
 #include "xla/service/gpu/gpu_reduce_scatter_creator.h"
 #include "xla/service/hlo_dce.h"
+#include "xla/service/hlo_parser.h"
 #include "xla/service/hlo_pass_pipeline.h"
 #include "xla/service/reduce_scatter_reassociate.h"
 #include "xla/service/sharding_propagation.h"
@@ -524,6 +525,59 @@ XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
     return XlaStatus::ERROR;
   }
   return XlaStatus::OK;
+}
+
+XlaStatus xlaParseHloSharding(char* str, size_t strSize,
+                              xla::HloSharding** outSharding) {
+  absl::string_view strView(str, strSize);
+  StatusOr<HloSharding> sharding = ParseSharding(strView);
+  if (sharding.status() != OkStatus()) {
+    std::cerr << "Failed parsing HloSharding from string \"" << strView << "\""
+              << std::endl;
+    return XlaStatus::ERROR;
+  }
+  std::unique_ptr<HloSharding> res =
+      std::make_unique<HloSharding>(std::move(sharding.value()));
+  *outSharding = res.release();
+  return XlaStatus::OK;
+}
+
+void xlaDestroyHloSharding(xla::HloSharding* sharding) {
+  std::unique_ptr<HloSharding> ptr(sharding);
+}
+
+bool xlaHloShardingIsTuple(const xla::HloSharding* sharding) {
+  return sharding->IsTuple();
+}
+
+bool xlaHloShardingIsTiled(const xla::HloSharding* sharding) {
+  return sharding->IsTiled();
+}
+
+bool xlaHloShardingIsReplicated(const xla::HloSharding* sharding) {
+  return sharding->IsReplicated();
+}
+
+bool xlaHloShardingIsManual(const xla::HloSharding* sharding) {
+  return sharding->IsManual();
+}
+
+bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding) {
+  return sharding->ReplicateOnLastTileDim();
+}
+
+void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
+                                         const int64_t* outDevices,
+                                         size_t* outDevicesSize) {
+  outDevices = sharding->tile_assignment().array().data();
+  *outDevicesSize = sharding->tile_assignment().array().num_elements();
+}
+
+void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
+                                              const int64_t* outShape,
+                                              size_t* outShapeSize) {
+  outShape = sharding->tile_assignment().array().dimensions().data();
+  *outShapeSize = sharding->tile_assignment().array().num_dimensions();
 }
 
 }  // extern "C"

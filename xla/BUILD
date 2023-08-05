@@ -1182,6 +1182,7 @@ cc_library(
         "//xla/service:collective_pipeliner",
         "//xla/service:conditional_canonicalizer",
         "//xla/service:hlo_dce",
+        "//xla/service:hlo_parser",
         "//xla/service:hlo_pass_pipeline",
         "//xla/service:reduce_scatter_reassociate",
         "//xla/service:sharding_propagation",
