@@ -6,6 +6,7 @@
 
 namespace xla {
 class HloModule;
+class HloSharding;
 }  // namespace xla
 
 extern "C" {
@@ -189,6 +190,22 @@ XlaStatus xlaRunCollectivesOptimizationPipeline(
 void xlaMakeDefaultAutoShardingOption(XlaAutoShardingOption* option);
 XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
                                  const XlaAutoShardingOption* option);
+
+XlaStatus xlaParseHloSharding(char* str, size_t strSize,
+                              xla::HloSharding** outSharding);
+void xlaDestroyHloSharding(xla::HloSharding* sharding);
+bool xlaHloShardingIsTuple(const xla::HloSharding* sharding);
+bool xlaHloShardingIsTiled(const xla::HloSharding* sharding);
+bool xlaHloShardingIsReplicated(const xla::HloSharding* sharding);
+bool xlaHloShardingIsManual(const xla::HloSharding* sharding);
+bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding);
+void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
+                                         const int64_t* outDevices,
+                                         size_t* outDevicesSize);
+void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
+                                              const int64_t* outShape,
+                                              size_t* outShapeSize);
+
 }  // extern "C"
 
 #endif  // XLA_XLA_CC_H

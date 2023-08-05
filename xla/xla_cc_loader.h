@@ -41,6 +41,22 @@ using MakeDefaultAutoShardingOption = void (*)(XlaAutoShardingOption* option);
 using RunAutoShardingPass = XlaStatus (*)(xla::HloModule* module,
                                           const XlaAutoShardingOption* option);
 
+using ParseHloSharding = XlaStatus (*)(char* str, size_t strSize,
+                                       xla::HloSharding** outSharding);
+using DestroyHloSharding = void (*)(xla::HloSharding* sharding);
+using HloShardingIsTuple = bool (*)(const xla::HloSharding* sharding);
+using HloShardingIsTiled = bool (*)(const xla::HloSharding* sharding);
+using HloShardingIsReplicated = bool (*)(const xla::HloSharding* sharding);
+using HloShardingIsManual = bool (*)(const xla::HloSharding* sharding);
+using HloShardingReplicateOnLastTileDim =
+    bool (*)(const xla::HloSharding* sharding);
+using HloShardingTileAssignmentDevices =
+    void (*)(const xla::HloSharding* sharding, const int64_t* outDevices,
+             size_t* outDevicesSize);
+using HloShardingTileAssignmentDevicesShape =
+    void (*)(const xla::HloSharding* sharding, const int64_t* outShape,
+             size_t* outShapeSize);
+
 extern StableHloFileToXlaHlo stableHloFileToXlaHlo;
 extern StableHloBufferToXlaHlo stableHloBufferToXlaHlo;
 extern DestroyHloModule destroyHloModule;
@@ -58,6 +74,17 @@ extern MakeDefaultCollectivesOptimizationPipeline
 extern RunCollectivesOptimizationPipeline runCollectivesOptimizationPipeline;
 extern MakeDefaultAutoShardingOption makeDefaultAutoShardingOption;
 extern RunAutoShardingPass runAutoShardingPass;
+
+extern ParseHloSharding parseHloSharding;
+extern DestroyHloSharding destroyHloSharding;
+extern HloShardingIsTuple hloShardingIsTuple;
+extern HloShardingIsTiled hloShardingIsTiled;
+extern HloShardingIsReplicated hloShardingIsReplicated;
+extern HloShardingIsManual hloShardingIsManual;
+extern HloShardingReplicateOnLastTileDim hloShardingReplicateOnLastTileDim;
+extern HloShardingTileAssignmentDevices hloShardingTileAssignmentDevices;
+extern HloShardingTileAssignmentDevicesShape
+    hloShardingTileAssignmentDevicesShape;
 
 XlaStatus loadSymbol(void* libraryHandle, void*& dst, const char* symbol);
 XlaStatus loadSymbols(void* libraryHandle);
