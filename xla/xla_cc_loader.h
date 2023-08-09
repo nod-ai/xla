@@ -41,7 +41,7 @@ using MakeDefaultAutoShardingOption = void (*)(XlaAutoShardingOption* option);
 using RunAutoShardingPass = XlaStatus (*)(xla::HloModule* module,
                                           const XlaAutoShardingOption* option);
 
-using ParseHloSharding = XlaStatus (*)(char* str, size_t strSize,
+using ParseHloSharding = XlaStatus (*)(const char* str, size_t strSize,
                                        xla::HloSharding** outSharding);
 using DestroyHloSharding = void (*)(xla::HloSharding* sharding);
 using HloShardingIsTuple = bool (*)(const xla::HloSharding* sharding);
@@ -51,11 +51,16 @@ using HloShardingIsManual = bool (*)(const xla::HloSharding* sharding);
 using HloShardingReplicateOnLastTileDim =
     bool (*)(const xla::HloSharding* sharding);
 using HloShardingTileAssignmentDevices =
-    void (*)(const xla::HloSharding* sharding, const int64_t* outDevices,
+    void (*)(const xla::HloSharding* sharding, const int64_t** outDevices,
              size_t* outDevicesSize);
 using HloShardingTileAssignmentDevicesShape =
-    void (*)(const xla::HloSharding* sharding, const int64_t* outShape,
+    void (*)(const xla::HloSharding* sharding, const int64_t** outShape,
              size_t* outShapeSize);
+using HloShardingTileShape = void (*)(const xla::HloSharding* sharding,
+                                      const int64_t* tensorShape,
+                                      size_t tensorShapeSize,
+                                      int64_t* outTileShape,
+                                      size_t* outTileShapeSize);
 
 extern StableHloFileToXlaHlo stableHloFileToXlaHlo;
 extern StableHloBufferToXlaHlo stableHloBufferToXlaHlo;
@@ -85,6 +90,7 @@ extern HloShardingReplicateOnLastTileDim hloShardingReplicateOnLastTileDim;
 extern HloShardingTileAssignmentDevices hloShardingTileAssignmentDevices;
 extern HloShardingTileAssignmentDevicesShape
     hloShardingTileAssignmentDevicesShape;
+extern HloShardingTileShape hloShardingTileShape;
 
 XlaStatus loadSymbol(void* libraryHandle, void*& dst, const char* symbol);
 XlaStatus loadSymbols(void* libraryHandle);

@@ -39,6 +39,7 @@ HloShardingReplicateOnLastTileDim hloShardingReplicateOnLastTileDim = nullptr;
 HloShardingTileAssignmentDevices hloShardingTileAssignmentDevices = nullptr;
 HloShardingTileAssignmentDevicesShape hloShardingTileAssignmentDevicesShape =
     nullptr;
+HloShardingTileShape hloShardingTileShape = nullptr;
 
 XlaStatus loadSymbol(void* libraryHandle, void*& dst, const char* symbol) {
   dst = dlsym(libraryHandle, symbol);
@@ -92,7 +93,10 @@ XlaStatus loadSymbols(void* libraryHandle) {
       {"xlaHloShardingTileAssignmentDevices",
        reinterpret_cast<void**>(&hloShardingTileAssignmentDevices)},
       {"xlaHloShardingTileAssignmentDevicesShape",
-       reinterpret_cast<void**>(&hloShardingTileAssignmentDevicesShape)}};
+       reinterpret_cast<void**>(&hloShardingTileAssignmentDevicesShape)},
+      {"xlaHloShardingTileShape",
+       reinterpret_cast<void**>(&hloShardingTileShape)},
+  };
   for (auto& sym : symbolTable) {
     XlaStatus status =
         loadSymbol(libraryHandle, *std::get<1>(sym), std::get<0>(sym));

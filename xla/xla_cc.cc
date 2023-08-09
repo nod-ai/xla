@@ -13,6 +13,7 @@
 #include <mlir/Pass/PassManager.h>
 #include <stablehlo/dialect/Register.h>
 
+#include <algorithm>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -527,7 +528,7 @@ XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
   return XlaStatus::OK;
 }
 
-XlaStatus xlaParseHloSharding(char* str, size_t strSize,
+XlaStatus xlaParseHloSharding(const char* str, size_t strSize,
                               xla::HloSharding** outSharding) {
   absl::string_view strView(str, strSize);
   StatusOr<HloSharding> sharding = ParseSharding(strView);
@@ -567,17 +568,34 @@ bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding) {
 }
 
 void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
-                                         const int64_t* outDevices,
+                                         const int64_t** outDevices,
                                          size_t* outDevicesSize) {
-  outDevices = sharding->tile_assignment().array().data();
+  *outDevices = sharding->tile_assignment().array().data();
   *outDevicesSize = sharding->tile_assignment().array().num_elements();
 }
 
 void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
-                                              const int64_t* outShape,
+                                              const int64_t** outShape,
                                               size_t* outShapeSize) {
-  outShape = sharding->tile_assignment().array().dimensions().data();
+  *outShape = sharding->tile_assignment().array().dimensions().data();
   *outShapeSize = sharding->tile_assignment().array().num_dimensions();
+}
+
+void xlaHloShardingTileShape(const xla::HloSharding* sharding,
+                             const int64_t* tensorShape, size_t tensorShapeSize,
+                             int64_t* outTileShape, size_t* outTileShapeSize) {
+  absl::Span<const int64_t> tensorShapeDims(tensorShape, tensorShapeSize);
+  absl::InlinedVector<bool, 10> dynamicDims(tensorShapeDims.size(), false);
+  Shape tensorShapeObj(F32,  // Just some element type.
+                       tensorShapeDims, dynamicDims, std::vector<Shape>());
+  Shape tileShape = sharding->TileShape(tensorShapeObj);
+  if (!outTileShape) {
+    *outTileShapeSize = tileShape.rank();
+    return;
+  }
+  *outTileShapeSize = tileShape.rank();
+  std::copy(tileShape.dimensions().begin(),
+            tileShape.dimensions().begin() + *outTileShapeSize, outTileShape);
 }
 
 }  // extern "C"

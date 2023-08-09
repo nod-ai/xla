@@ -191,7 +191,7 @@ void xlaMakeDefaultAutoShardingOption(XlaAutoShardingOption* option);
 XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
                                  const XlaAutoShardingOption* option);
 
-XlaStatus xlaParseHloSharding(char* str, size_t strSize,
+XlaStatus xlaParseHloSharding(const char* str, size_t strSize,
                               xla::HloSharding** outSharding);
 void xlaDestroyHloSharding(xla::HloSharding* sharding);
 bool xlaHloShardingIsTuple(const xla::HloSharding* sharding);
@@ -199,12 +199,18 @@ bool xlaHloShardingIsTiled(const xla::HloSharding* sharding);
 bool xlaHloShardingIsReplicated(const xla::HloSharding* sharding);
 bool xlaHloShardingIsManual(const xla::HloSharding* sharding);
 bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding);
+// Does not get ownership of outDevices.
 void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
-                                         const int64_t* outDevices,
+                                         const int64_t** outDevices,
                                          size_t* outDevicesSize);
+// Does not get ownership of outShape.
 void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
-                                              const int64_t* outShape,
+                                              const int64_t** outShape,
                                               size_t* outShapeSize);
+// If outTileShape is NULL set only outTileShapeSize.
+void xlaHloShardingTileShape(const xla::HloSharding* sharding,
+                             const int64_t* tensorShape, size_t tensorShapeSize,
+                             int64_t* outTileShape, size_t* outTileShapeSize);
 
 }  // extern "C"
 
