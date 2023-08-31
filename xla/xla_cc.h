@@ -11,7 +11,7 @@ class HloSharding;
 
 extern "C" {
 
-enum XlaStatus { OK = 0, ERROR = 1 };
+enum [[nodiscard]] XlaStatus { OK = 0, ERROR = 1 };
 
 enum XlaAutoShardingOptionPreserveShardingsType {
   // AutoSharding constrains the search space using all user shardings.
@@ -191,9 +191,25 @@ void xlaMakeDefaultAutoShardingOption(XlaAutoShardingOption* option);
 XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
                                  const XlaAutoShardingOption* option);
 
+XlaStatus xlaMakeTiledHloSharding(const int64_t* tileAssignmentDevices,
+                                  const int64_t* tileAssignmentDevicesShape,
+                                  size_t tileAssignmentDevicesShapeSize,
+                                  bool replicateOnLastTileDim,
+                                  xla::HloSharding** outSharding);
+XlaStatus xlaMakeReplicatedHloSharding(xla::HloSharding** outSharding);
+// Does not take ownership of shardings.
+XlaStatus xlaMakeHloShardingTuple(const xla::HloSharding** shardings,
+                                  int64_t shardingsSize,
+                                  xla::HloSharding** outSharding);
 XlaStatus xlaParseHloSharding(const char* str, size_t strSize,
                               xla::HloSharding** outSharding);
 void xlaDestroyHloSharding(xla::HloSharding* sharding);
+// The caller acquires ownership of outStr,
+// that must be destroyed with  xlaDestroyCharBuffer.
+// The resulting string is NULL terminated,
+// which is not counted towards outStrSize.
+XlaStatus xlaHloShardingToString(const xla::HloSharding* sharding,
+                                 char** outStr, size_t* outStrSize);
 bool xlaHloShardingIsTuple(const xla::HloSharding* sharding);
 bool xlaHloShardingIsTiled(const xla::HloSharding* sharding);
 bool xlaHloShardingIsReplicated(const xla::HloSharding* sharding);
@@ -202,7 +218,8 @@ bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding);
 // Does not get ownership of outDevices.
 void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
                                          const int64_t** outDevices,
-                                         size_t* outDevicesSize);
+                                         const int64_t** outShape,
+                                         size_t* outShapeSize);
 // Does not get ownership of outShape.
 void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
                                               const int64_t** outShape,
@@ -211,6 +228,11 @@ void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
 void xlaHloShardingTileShape(const xla::HloSharding* sharding,
                              const int64_t* tensorShape, size_t tensorShapeSize,
                              int64_t* outTileShape, size_t* outTileShapeSize);
+// |sharding| is still the owner of the returned shardings.
+// If outElements is NULL returns only the size.
+void xlaHloShardingTupleElements(const xla::HloSharding* sharding,
+                                 const xla::HloSharding** outElements,
+                                 size_t* outElementsSize);
 
 }  // extern "C"
 

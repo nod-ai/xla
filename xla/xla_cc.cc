@@ -20,7 +20,9 @@
 #include <numeric>
 
 #include "hlo/experimental/auto_sharding/auto_sharding.h"
+#include "hlo/ir/hlo_sharding.h"
 #include "tsl/platform/errors.h"
+#include "xla/array.h"
 #include "xla/hlo/experimental/auto_sharding/auto_sharding.h"
 #include "xla/hlo/ir/hlo_module.h"
 #include "xla/mlir_hlo/mhlo/transforms/passes.h"
@@ -528,6 +530,50 @@ XlaStatus xlaRunAutoShardingPass(xla::HloModule* module,
   return XlaStatus::OK;
 }
 
+XlaStatus xlaMakeTiledHloSharding(const int64_t* tileAssignmentDevices,
+                                  const int64_t* tileAssignmentDevicesShape,
+                                  size_t tileAssignmentDevicesShapeSize,
+                                  bool replicateOnLastTileDim,
+                                  HloSharding** outSharding) {
+  absl::Span<const int64_t> shape(tileAssignmentDevicesShape,
+                                  tileAssignmentDevicesShapeSize);
+  Array<int64_t> array(shape);
+  std::copy(tileAssignmentDevices, tileAssignmentDevices + array.num_elements(),
+            array.begin());
+  HloSharding hloSharding = replicateOnLastTileDim
+                                ? HloSharding::PartialTile(array)
+                                : HloSharding::Tile(array);
+  *outSharding =
+      std::make_unique<HloSharding>(std::move(hloSharding)).release();
+  return XlaStatus::OK;
+}
+
+XlaStatus xlaMakeReplicatedHloSharding(HloSharding** outSharding) {
+  *outSharding =
+      std::make_unique<HloSharding>(std::move(HloSharding::Replicate()))
+          .release();
+  return XlaStatus::OK;
+}
+
+XlaStatus xlaMakeHloShardingTuple(const HloSharding** shardings,
+                                  int64_t shardingsSize,
+                                  HloSharding** outSharding) {
+  Shape xlaShape =
+      Shape(PrimitiveType::TUPLE, absl::Span<const int64_t>({shardingsSize}),
+            absl::Span<const bool>({false}), std::vector<Shape>(shardingsSize));
+  std::vector<HloSharding> shardingsVec;
+  shardingsVec.reserve(shardingsSize);
+  std::transform(shardings, shardings + shardingsSize,
+                 std::back_inserter(shardingsVec),
+                 [](const HloSharding* s) { return HloSharding(*s); });
+  *outSharding = std::make_unique<HloSharding>(
+                     std::move(HloSharding::Tuple(
+                         xlaShape, absl::MakeSpan(shardingsVec.data(),
+                                                  shardingsVec.size()))))
+                     .release();
+  return XlaStatus::OK;
+}
+
 XlaStatus xlaParseHloSharding(const char* str, size_t strSize,
                               xla::HloSharding** outSharding) {
   absl::string_view strView(str, strSize);
@@ -545,6 +591,16 @@ XlaStatus xlaParseHloSharding(const char* str, size_t strSize,
 
 void xlaDestroyHloSharding(xla::HloSharding* sharding) {
   std::unique_ptr<HloSharding> ptr(sharding);
+}
+
+XlaStatus xlaHloShardingToString(const HloSharding* sharding, char** outStr,
+                                 size_t* outStrSize) {
+  std::string str = sharding->ToString(true);
+  std::unique_ptr<char[]> strPtr = std::make_unique<char[]>(str.size() + 1);
+  std::copy(str.data(), str.data() + str.size() + 1, strPtr.get());
+  *outStrSize = str.size();
+  *outStr = strPtr.release();
+  return XlaStatus::OK;
 }
 
 bool xlaHloShardingIsTuple(const xla::HloSharding* sharding) {
@@ -569,14 +625,10 @@ bool xlaHloShardingReplicateOnLastTileDim(const xla::HloSharding* sharding) {
 
 void xlaHloShardingTileAssignmentDevices(const xla::HloSharding* sharding,
                                          const int64_t** outDevices,
-                                         size_t* outDevicesSize) {
+                                         const int64_t** outShape,
+                                         size_t* outShapeSize) {
+  assert(!sharding->IsReplicated() && !sharding->IsTuple());
   *outDevices = sharding->tile_assignment().array().data();
-  *outDevicesSize = sharding->tile_assignment().array().num_elements();
-}
-
-void xlaHloShardingTileAssignmentDevicesShape(const xla::HloSharding* sharding,
-                                              const int64_t** outShape,
-                                              size_t* outShapeSize) {
   *outShape = sharding->tile_assignment().array().dimensions().data();
   *outShapeSize = sharding->tile_assignment().array().num_dimensions();
 }
@@ -596,6 +648,18 @@ void xlaHloShardingTileShape(const xla::HloSharding* sharding,
   *outTileShapeSize = tileShape.rank();
   std::copy(tileShape.dimensions().begin(),
             tileShape.dimensions().begin() + *outTileShapeSize, outTileShape);
+}
+
+void xlaHloShardingTupleElements(const HloSharding* sharding,
+                                 const HloSharding** outElements,
+                                 size_t* outElementsSize) {
+  assert(sharding->IsTuple());
+  const std::vector<HloSharding>& tuple = sharding->tuple_elements();
+  *outElementsSize = tuple.size();
+  if (outElements) {
+    std::transform(tuple.begin(), tuple.end(), outElements,
+                   [](const HloSharding& s) { return &s; });
+  }
 }
 
 }  // extern "C"

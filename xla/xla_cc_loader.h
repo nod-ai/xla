@@ -41,9 +41,20 @@ using MakeDefaultAutoShardingOption = void (*)(XlaAutoShardingOption* option);
 using RunAutoShardingPass = XlaStatus (*)(xla::HloModule* module,
                                           const XlaAutoShardingOption* option);
 
+using MakeTiledHloSharding =
+    XlaStatus (*)(const int64_t* tileAssignmentDevices,
+                  const int64_t* tileAssignmentDevicesShape,
+                  size_t tileAssignmentDevicesShapeSize,
+                  bool replicateOnLastTileDim, xla::HloSharding** outSharding);
+using MakeReplicatedHloSharding = XlaStatus (*)(xla::HloSharding** outSharding);
+using MakeHloShardingTuple = XlaStatus (*)(const xla::HloSharding** shardings,
+                                           int64_t shardingsSize,
+                                           xla::HloSharding** outSharding);
 using ParseHloSharding = XlaStatus (*)(const char* str, size_t strSize,
                                        xla::HloSharding** outSharding);
 using DestroyHloSharding = void (*)(xla::HloSharding* sharding);
+using HloShardingToString = XlaStatus (*)(const xla::HloSharding* sharding,
+                                          char** outStr, size_t* outStrSize);
 using HloShardingIsTuple = bool (*)(const xla::HloSharding* sharding);
 using HloShardingIsTiled = bool (*)(const xla::HloSharding* sharding);
 using HloShardingIsReplicated = bool (*)(const xla::HloSharding* sharding);
@@ -52,15 +63,15 @@ using HloShardingReplicateOnLastTileDim =
     bool (*)(const xla::HloSharding* sharding);
 using HloShardingTileAssignmentDevices =
     void (*)(const xla::HloSharding* sharding, const int64_t** outDevices,
-             size_t* outDevicesSize);
-using HloShardingTileAssignmentDevicesShape =
-    void (*)(const xla::HloSharding* sharding, const int64_t** outShape,
-             size_t* outShapeSize);
+             const int64_t** outShape, size_t* outShapeSize);
 using HloShardingTileShape = void (*)(const xla::HloSharding* sharding,
                                       const int64_t* tensorShape,
                                       size_t tensorShapeSize,
                                       int64_t* outTileShape,
                                       size_t* outTileShapeSize);
+using HloShardingTupleElements = void (*)(const xla::HloSharding* sharding,
+                                          const xla::HloSharding** outElements,
+                                          size_t* outElementsSize);
 
 extern StableHloFileToXlaHlo stableHloFileToXlaHlo;
 extern StableHloBufferToXlaHlo stableHloBufferToXlaHlo;
@@ -80,17 +91,20 @@ extern RunCollectivesOptimizationPipeline runCollectivesOptimizationPipeline;
 extern MakeDefaultAutoShardingOption makeDefaultAutoShardingOption;
 extern RunAutoShardingPass runAutoShardingPass;
 
+extern MakeTiledHloSharding makeTiledHloSharding;
+extern MakeReplicatedHloSharding makeReplicatedHloSharding;
+extern MakeHloShardingTuple makeHloShardingTuple;
 extern ParseHloSharding parseHloSharding;
 extern DestroyHloSharding destroyHloSharding;
+extern HloShardingToString hloShardingToString;
 extern HloShardingIsTuple hloShardingIsTuple;
 extern HloShardingIsTiled hloShardingIsTiled;
 extern HloShardingIsReplicated hloShardingIsReplicated;
 extern HloShardingIsManual hloShardingIsManual;
 extern HloShardingReplicateOnLastTileDim hloShardingReplicateOnLastTileDim;
 extern HloShardingTileAssignmentDevices hloShardingTileAssignmentDevices;
-extern HloShardingTileAssignmentDevicesShape
-    hloShardingTileAssignmentDevicesShape;
 extern HloShardingTileShape hloShardingTileShape;
+extern HloShardingTupleElements hloShardingTupleElements;
 
 XlaStatus loadSymbol(void* libraryHandle, void*& dst, const char* symbol);
 XlaStatus loadSymbols(void* libraryHandle);
