@@ -29,17 +29,20 @@ RunCollectivesOptimizationPipeline runCollectivesOptimizationPipeline = nullptr;
 MakeDefaultAutoShardingOption makeDefaultAutoShardingOption = nullptr;
 RunAutoShardingPass runAutoShardingPass = nullptr;
 
+MakeTiledHloSharding makeTiledHloSharding = nullptr;
+MakeReplicatedHloSharding makeReplicatedHloSharding = nullptr;
+MakeHloShardingTuple makeHloShardingTuple = nullptr;
 ParseHloSharding parseHloSharding = nullptr;
 DestroyHloSharding destroyHloSharding = nullptr;
+HloShardingToString hloShardingToString = nullptr;
 HloShardingIsTuple hloShardingIsTuple = nullptr;
 HloShardingIsTiled hloShardingIsTiled = nullptr;
 HloShardingIsReplicated hloShardingIsReplicated = nullptr;
 HloShardingIsManual hloShardingIsManual = nullptr;
 HloShardingReplicateOnLastTileDim hloShardingReplicateOnLastTileDim = nullptr;
 HloShardingTileAssignmentDevices hloShardingTileAssignmentDevices = nullptr;
-HloShardingTileAssignmentDevicesShape hloShardingTileAssignmentDevicesShape =
-    nullptr;
 HloShardingTileShape hloShardingTileShape = nullptr;
+HloShardingTupleElements hloShardingTupleElements = nullptr;
 
 XlaStatus loadSymbol(void* libraryHandle, void*& dst, const char* symbol) {
   dst = dlsym(libraryHandle, symbol);
@@ -80,8 +83,16 @@ XlaStatus loadSymbols(void* libraryHandle) {
        reinterpret_cast<void**>(&makeDefaultAutoShardingOption)},
       {"xlaRunAutoShardingPass",
        reinterpret_cast<void**>(&runAutoShardingPass)},
+      {"xlaMakeTiledHloSharding",
+       reinterpret_cast<void**>(&makeTiledHloSharding)},
+      {"xlaMakeReplicatedHloSharding",
+       reinterpret_cast<void**>(&makeReplicatedHloSharding)},
+      {"xlaMakeHloShardingTuple",
+       reinterpret_cast<void**>(&makeHloShardingTuple)},
       {"xlaParseHloSharding", reinterpret_cast<void**>(&parseHloSharding)},
       {"xlaDestroyHloSharding", reinterpret_cast<void**>(&destroyHloSharding)},
+      {"xlaHloShardingToString",
+       reinterpret_cast<void**>(&hloShardingToString)},
       {"xlaHloShardingIsTuple", reinterpret_cast<void**>(&hloShardingIsTuple)},
       {"xlaHloShardingIsTiled", reinterpret_cast<void**>(&hloShardingIsTiled)},
       {"xlaHloShardingIsReplicated",
@@ -92,11 +103,10 @@ XlaStatus loadSymbols(void* libraryHandle) {
        reinterpret_cast<void**>(&hloShardingReplicateOnLastTileDim)},
       {"xlaHloShardingTileAssignmentDevices",
        reinterpret_cast<void**>(&hloShardingTileAssignmentDevices)},
-      {"xlaHloShardingTileAssignmentDevicesShape",
-       reinterpret_cast<void**>(&hloShardingTileAssignmentDevicesShape)},
       {"xlaHloShardingTileShape",
        reinterpret_cast<void**>(&hloShardingTileShape)},
-  };
+      {"xlaHloShardingTupleElements",
+       reinterpret_cast<void**>(&hloShardingTupleElements)}};
   for (auto& sym : symbolTable) {
     XlaStatus status =
         loadSymbol(libraryHandle, *std::get<1>(sym), std::get<0>(sym));
