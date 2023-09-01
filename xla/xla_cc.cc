@@ -355,10 +355,10 @@ XlaStatus xlaRunCollectivesOptimizationPipeline(
   if (option->enable_data_parallel_collective_optimizer) {
     {
       CollectivePipeliner::Config config{
-          /*op=*/HloOpcode::kAllReduce,
           /*level_to_operate_on=*/0,
           /*max_pipelining_per_loop=*/INT64_MAX,
           /*last_run=*/true,
+          /*pipeline_use_tree=*/false,
           /*process_different_sized_ops=*/true,
           /*pipelining_direction=*/
           CollectivePipeliner::PipeliningDirection::kForward,
@@ -367,26 +367,26 @@ XlaStatus xlaRunCollectivesOptimizationPipeline(
     }
     {
       CollectivePipeliner::Config config{
-          /*op=*/HloOpcode::kAllGather,
           /*level_to_operate_on=*/0,
           /*max_pipelining_per_loop=*/INT64_MAX,
           /*last_run=*/true,
+          /*pipeline_use_tree=*/false,
           /*process_different_sized_ops=*/true,
           /*pipelining_direction=*/
           CollectivePipeliner::PipeliningDirection::kBackward,
-          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllGather>};
       pipeline.AddPass<CollectivePipeliner>(config);
     }
     {
       CollectivePipeliner::Config config{
-          /*op=*/HloOpcode::kReduceScatter,
           /*level_to_operate_on=*/0,
           /*max_pipelining_per_loop=*/INT64_MAX,
           /*last_run=*/true,
+          /*pipeline_use_tree=*/false,
           /*process_different_sized_ops=*/true,
           /*pipelining_direction=*/
           CollectivePipeliner::PipeliningDirection::kForward,
-          /*should_process=*/HloPredicateIsOp<HloOpcode::kAllReduce>};
+          /*should_process=*/HloPredicateIsOp<HloOpcode::kReduceScatter>};
       pipeline.AddPass<CollectivePipeliner>(config);
     }
   }
