@@ -122,12 +122,14 @@ XlaStatus stableHloToXlaHloPjrt(mlir::ModuleOp moduleOp,
 
   if (auto num_partitions =
           moduleOp->getAttrOfType<mlir::IntegerAttr>("mhlo.num_partitions")) {
-    hloModule.value()->config().set_num_partitions(num_partitions.getInt());
+    hloModule.value()->mutable_config().set_num_partitions(
+        num_partitions.getInt());
   }
 
   if (auto num_replicas =
           moduleOp->getAttrOfType<mlir::IntegerAttr>("mhlo.num_replicas")) {
-    hloModule.value()->config().set_replica_count(num_replicas.getInt());
+    hloModule.value()->mutable_config().set_replica_count(
+        num_replicas.getInt());
   }
 
   *outModule = hloModule.value().release();
@@ -425,8 +427,8 @@ XlaStatus xlaRunSpmdPartitionerPass(xla::HloModule* module,
     return XlaStatus::ERROR;
   }
 
-  module->config().set_num_partitions(numPartitions);
-  module->config().set_replica_count(numReplicas);
+  module->mutable_config().set_num_partitions(numPartitions);
+  module->mutable_config().set_replica_count(numReplicas);
 
   return XlaStatus::OK;
 }
@@ -472,8 +474,8 @@ XlaStatus xlaRunShardingPropagationAndSpmdPartitionerPasses(
     return XlaStatus::ERROR;
   }
 
-  module->config().set_num_partitions(numPartitions);
-  module->config().set_replica_count(numReplicas);
+  module->mutable_config().set_num_partitions(numPartitions);
+  module->mutable_config().set_replica_count(numReplicas);
 
   return XlaStatus::OK;
 }
